@@ -4,203 +4,430 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Archive</title>
+<meta name="color-scheme" content="light dark">
+<script>try{var t=localStorage.getItem("archive-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <style>
-  :root { --s: 8px; --ink: #111; --soft: #8a8a8a; --line: #ececec; }
+  /* ------------------------------------------------------------------
+     Tokens. Every size on the page comes from this list.
+     ------------------------------------------------------------------ */
+  :root {
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    --page: #ffffff;
+    --ink: #1f1e1d;
+    --soft: #6f6b66;
+    --faint: #b9b5af;
+    --mat: #f5f4f1;
+    --line: rgba(31, 30, 29, .10);
+    --accent: #b85c38;
+    --chip: #f5f4f1;               /* pressed pill on the page */
+    --menu: #ffffff;
+    --barbg: rgba(255, 255, 255, .86);
+    --hintbg: rgba(31, 30, 29, .78);
+
+    --s1: 4px; --s2: 8px; --s3: 16px; --s4: 24px; --s5: 32px; --s6: 48px; --s7: 64px; --s8: 96px;
+    --pad: var(--s6);          /* page side padding */
+    --gap: var(--s5);          /* grid gap, both ways */
+    --bar: var(--s7);          /* top bar height */
+
+    --r-tile: 12px; --r-stage: 18px; --r-menu: 12px;
+
+    --move: cubic-bezier(.32, .72, 0, 1);
+    --fade: cubic-bezier(.25, .1, .25, 1);
+  }
+  /* dark: same layout, quieter light */
+  :root[data-theme="dark"] {
+    --page: #000000; --ink: #f5f5f7; --soft: #a1a1a6; --faint: #5a5a5e; --mat: #1c1c1e;
+    --line: rgba(255, 255, 255, .12); --accent: #e08a62; --chip: #2c2c2e; --menu: #1c1c1e;
+    --barbg: rgba(0, 0, 0, .72); --hintbg: rgba(44, 44, 46, .9);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page: #000000; --ink: #f5f5f7; --soft: #a1a1a6; --faint: #5a5a5e; --mat: #1c1c1e;
+      --line: rgba(255, 255, 255, .12); --accent: #e08a62; --chip: #2c2c2e; --menu: #1c1c1e;
+      --barbg: rgba(0, 0, 0, .72); --hintbg: rgba(44, 44, 46, .9);
+    }
+  }
+  @media (max-width: 1024px) { :root { --pad: var(--s4); --gap: var(--s4); } }
+  @media (max-width: 600px)  { :root { --pad: var(--s3); --gap: var(--s3); --bar: 56px; } }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { background: #fff; color: var(--ink); }
+  html { background: var(--page); -webkit-text-size-adjust: 100%; }
   body {
-    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
-    padding: calc(var(--s) * 6);
+    background: var(--page); color: var(--ink);
+    font: 400 15px/1.47 var(--font);
+    -webkit-font-smoothing: antialiased;
     min-height: 100vh;
   }
-  a { color: inherit; }
+  a { color: inherit; text-decoration: none; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  :focus { outline: none; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  .num { font-variant-numeric: tabular-nums; }
 
-  /* folder switcher, top left */
-  #switch { position: relative; margin-bottom: calc(var(--s) * 4); font-size: 12px; }
-  #switch-btn {
-    background: none; border: 0; padding: 0; cursor: pointer;
-    font: inherit; color: var(--ink); letter-spacing: .02em;
+  /* ------------------------------------------------------------------
+     Top bar. Home: folder and sort on the left, year on the right.
+     Piece page: the back link sits where the folder switch was.
+     ------------------------------------------------------------------ */
+  #bar {
+    position: sticky; top: 0; z-index: 10;
+    height: var(--bar); padding: 0 var(--pad);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--barbg);
+    -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+    font-size: 13px; line-height: 16px;
   }
-  #switch-btn::after { content: " \25BE"; color: var(--soft); }
-  #switch-list {
-    display: none; position: absolute; left: 0; top: calc(100% + var(--s));
-    background: #fff; border: 1px solid var(--line);
-    padding: var(--s) 0; min-width: 160px; z-index: 6; list-style: none;
-  }
-  #switch.open #switch-list { display: block; }
-  #switch-list a {
-    display: flex; justify-content: space-between; gap: calc(var(--s) * 3);
-    padding: calc(var(--s) * .5) calc(var(--s) * 2);
-    text-decoration: none; color: var(--soft);
-  }
-  #switch-list a:hover, #switch-list a[aria-current="true"] { color: var(--ink); }
-  #switch-list .n { color: var(--soft); }
-  #switch-list .sep { height: 1px; background: var(--line); margin: var(--s) 0; }
-  body.one #switch { display: none; }
-
-  /* grid */
-  #grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: calc(var(--s) * 3);
-  }
-  .year {
-    grid-column: 1 / -1;
+  #bar .side { display: flex; align-items: center; gap: var(--s4); }
+  .menu { position: relative; }
+  .menu > button, #back {
+    display: inline-flex; align-items: center; gap: var(--s2);
+    height: 44px;                       /* touch target; the text stays 13px */
     color: var(--soft);
-    font-size: 12px;
-    letter-spacing: .04em;
-    padding-top: calc(var(--s) * 3);
+    transition: color .15s var(--fade);
   }
-  .year:first-child { padding-top: 0; }
-  .tile {
-    display: block;
-    aspect-ratio: 16 / 10;
-    background: #f6f6f6;
-    overflow: hidden;
-    cursor: pointer;
-    border: 0;
-    width: 100%;
-  }
-  .tile img {
-    width: 100%; height: 100%;
-    object-fit: cover;
-    display: block;
-    transition: opacity .15s ease;
-  }
-  .tile:hover img, .tile:focus-visible img { opacity: .82; }
-  .tile:focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
+  .menu:first-child > button, #back { color: var(--ink); }
+  .menu > button:hover, #back:hover { color: var(--ink); }
+  .menu > button svg { width: 8px; height: 5px; flex: none; opacity: .55; transition: transform .2s var(--move); }
+  .menu.open > button svg { transform: rotate(180deg); }
+  #back svg { width: 6px; height: 10px; flex: none; }
+  #theme { width: 44px; height: 44px; margin-right: -12px; display: inline-flex; align-items: center; justify-content: center; color: var(--soft); border-radius: 22px; transition: color .15s var(--fade), transform .15s var(--move); }
+  #theme:hover { color: var(--ink); }
+  #theme:active { transform: scale(.94); }
+  #theme svg { width: 18px; height: 18px; transition: transform .45s var(--move); }
+  #theme .moon { display: none; }
+  html.is-dark #theme .sun { display: none; }
+  html.is-dark #theme .moon { display: block; }
 
-  /* label that follows the mouse */
-  #tip {
-    position: fixed;
-    left: 0; top: 0;
-    pointer-events: none;
-    background: #fff;
-    border: 1px solid var(--line);
-    padding: var(--s) calc(var(--s) * 1.5);
-    font-size: 12px;
-    line-height: 1.4;
-    max-width: 240px;
-    opacity: 0;
-    transition: opacity .1s ease;
-    z-index: 5;
+  .menu ul {
+    position: absolute; top: calc(100% - 4px); left: calc(var(--s3) * -1);
+    min-width: 208px; max-height: min(480px, calc(100vh - var(--bar) - var(--s3))); overflow-y: auto;
+    list-style: none; padding: var(--s2) 0;
+    background: var(--menu); border-radius: var(--r-menu);
+    box-shadow: 0 0 0 1px var(--line), 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.08);
+    opacity: 0; visibility: hidden; transform: translateY(-4px);
+    transition: opacity .15s var(--fade), transform .2s var(--move), visibility 0s .2s;
   }
-  #tip.on { opacity: 1; }
-  #tip b { font-weight: 500; display: block; }
-  #tip span { color: var(--soft); }
+  .menu.right ul { left: auto; right: calc(var(--s3) * -1); min-width: 144px; }
+  .menu.open ul { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+  .menu li.sep { height: 1px; background: var(--line); margin: var(--s2) 0; }
+  .menu li > * {
+    display: flex; justify-content: space-between; align-items: center; gap: var(--s4);
+    width: 100%; height: 32px; padding: 0 var(--s3);
+    color: var(--soft); text-align: left;
+  }
+  .menu li > *:hover, .menu li > [aria-current="true"] { color: var(--ink); }
+  .menu li > [aria-current="true"] span:first-child { font-weight: 600; }
+  .menu li span + span { color: var(--soft); }
+  @media (hover: none) { .menu li > * { height: 44px; } }
 
-  /* piece page */
-  #piece { display: none; max-width: 880px; margin: 0 auto; }
-  #piece .back {
-    display: inline-block;
-    text-decoration: none;
-    color: var(--soft);
-    font-size: 12px;
-    margin-bottom: calc(var(--s) * 3);
+  body.one #bar .home-only { display: none; }
+  body:not(.one) #bar .piece-only { display: none; }
+
+  /* ------------------------------------------------------------------
+     Home: year sections, each an even grid of 16:10 tiles.
+     ------------------------------------------------------------------ */
+  #home { padding: var(--s4) var(--pad) var(--s8); }
+  .year { margin-top: var(--s7); scroll-margin-top: var(--bar); }
+  .year:first-child { margin-top: 0; }
+  .year h2 {
+    font-size: 28px; line-height: 32px; font-weight: 600; letter-spacing: -.02em; color: var(--ink);
+    margin-bottom: var(--s4);
   }
-  #piece .back:hover { color: var(--ink); }
-  #piece img { width: 100%; display: block; background: #f6f6f6; }
-  #piece h1 {
-    font-size: 16px;
-    font-weight: 500;
-    margin-top: calc(var(--s) * 3);
-  }
-  #piece dl {
+  @media (max-width: 600px) { .year { margin-top: var(--s6); } .year h2 { font-size: 24px; line-height: 28px; margin-bottom: var(--s3); } }
+  .grid {
     display: grid;
-    grid-template-columns: 96px 1fr;
-    row-gap: var(--s);
-    margin-top: calc(var(--s) * 2);
-    padding-top: calc(var(--s) * 2);
-    border-top: 1px solid var(--line);
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--gap);
   }
-  #piece dt { color: var(--soft); }
-  #piece .nav {
-    display: flex;
-    justify-content: space-between;
-    margin-top: calc(var(--s) * 6);
-    padding-top: calc(var(--s) * 2);
-    border-top: 1px solid var(--line);
-    font-size: 12px;
-  }
-  #piece .nav a { text-decoration: none; color: var(--soft); }
-  #piece .nav a:hover { color: var(--ink); }
+  @media (max-width: 1024px) { .grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); } }
+  @media (max-width: 600px)  { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-  body.one #grid { display: none; }
+  .tile { position: relative; display: block; }
+  .frame {
+    position: relative; display: block; aspect-ratio: 16 / 10;
+    background: var(--mat); border-radius: var(--r-tile); overflow: hidden;
+    transition: transform .25s var(--move), box-shadow .25s var(--fade);
+  }
+  .frame::after {                       /* one hairline on every tile, so white logos keep an edge */
+    content: ""; position: absolute; inset: 0; border-radius: inherit;
+    box-shadow: inset 0 0 0 1px var(--line); pointer-events: none;
+  }
+  .frame img { width: 100%; height: 100%; display: block; object-fit: contain; }
+  .frame img.fill { object-fit: cover; object-position: top center; }
+
+  /* peek: hover a site and its tile scrolls slowly down the page, like a visitor would */
+  .frame .pk { position: absolute; inset: 0; opacity: 0; transition: opacity .2s var(--fade); pointer-events: none; }
+  .frame .pk img { width: 100%; height: auto; display: block; will-change: transform; }
+  .frame .sb {                          /* a thin overlay scrollbar, so the motion reads as scrolling */
+    position: absolute; top: var(--s1); right: var(--s1); width: 4px; border-radius: 2px;
+    background: rgba(0, 0, 0, .45); box-shadow: 0 0 0 1px rgba(255, 255, 255, .55);
+    opacity: 0; transition: opacity .2s var(--fade); pointer-events: none; will-change: transform;
+  }
+  .tile.peeking .pk, .tile.peeking .sb { opacity: 1; }
+
+  /* caption: sits in the gutter under its tile. Hidden until hover on a mouse, always shown on touch. */
+  .cap {
+    position: absolute; left: 0; right: 0; top: 100%; height: var(--gap);
+    display: flex; align-items: center; gap: var(--s2);
+    font-size: 13px; line-height: 16px; white-space: nowrap;
+  }
+  .cap .t { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .cap .d { color: var(--soft); margin-left: auto; flex: none; }
+  .cap .t, .cap .d { opacity: 0; transition: opacity .15s var(--fade); }
+  .tile:hover .cap .t, .tile:hover .cap .d,
+  .tile:focus-visible .cap .t, .tile:focus-visible .cap .d { opacity: 1; }
+  .tile:focus-visible { outline: none; }
+  .tile:focus-visible .frame { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  /* version marks: one dot per version. Ink = this one, grey = another look, ring = planned. */
+  .dots { display: inline-flex; gap: var(--s1); flex: none; }
+  .cap .d + .dots { margin-left: 0; }
+  .cap .dots { margin-left: auto; }
+  .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); }
+  .dots i.on { background: var(--ink); }
+  .dots i.plan { background: none; box-shadow: inset 0 0 0 1px var(--faint); }
+
+  @media (hover: hover) and (min-width: 601px) {
+    .tile:hover .frame { transform: translateY(-2px); box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.08); }
+    .tile:active .frame { transform: scale(.985); }
+  }
+  @media (hover: none), (max-width: 600px) {
+    .cap { position: static; height: 16px; margin-top: var(--s2); }
+    .cap .t, .cap .d { opacity: 1; }
+    .grid { row-gap: var(--s4); }
+  }
+  @media (max-width: 600px) { .cap .d { display: none; } }
+
+  .empty { color: var(--soft); font-size: 13px; padding: var(--s3) 0; }
+
+  /* ------------------------------------------------------------------
+     Piece page. One layout for every kind: stage, versions, words, facts.
+     ------------------------------------------------------------------ */
+  #piece { display: none; padding: 0 var(--pad) var(--s8); }
+  body.one #home { display: none; }
   body.one #piece { display: block; }
+  /* the stage is as wide as it can be while it, the versions row and the title still fit on one screen */
+  #piece .col { width: 100%; max-width: min(1080px, max(320px, calc((100vh - 264px) * 1.6))); margin: 0 auto; }
 
+  #stage {
+    position: relative; aspect-ratio: 16 / 10; overflow: hidden;
+    background: var(--mat); border-radius: var(--r-stage);
+  }
+  #stage::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit;
+    box-shadow: inset 0 0 0 1px var(--line); pointer-events: none; z-index: 3;
+  }
+  #stage .layer { position: absolute; inset: 0; opacity: 0; transition: opacity .4s var(--fade); }
+  #stage .layer.on { opacity: 1; }
+  #stage img.pic { width: 100%; height: 100%; display: block; object-fit: contain; }
+  #stage img.pic.fill { object-fit: cover; object-position: top center; }
+  #stage .scroll { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  #stage .scroll img { width: 100%; height: auto; display: block; }
+  #stage iframe { width: 100%; height: 100%; border: 0; display: block; background: var(--page); position: relative; z-index: 1; }
+  #stage .under {                       /* shows only if a live site refuses to load in the frame */
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+    padding: var(--s4); color: var(--soft); font-size: 13px;
+  }
+  #stage pre {
+    height: 100%; overflow: auto; padding: var(--s4);
+    font: 12px/1.6 var(--mono); color: var(--ink); background: var(--page); white-space: pre; tab-size: 2;
+  }
+  #hint {
+    position: absolute; left: 50%; bottom: var(--s3); transform: translateX(-50%); z-index: 4;
+    height: 32px; padding: 0 var(--s3); border-radius: 16px; display: flex; align-items: center; gap: var(--s2);
+    background: var(--hintbg); color: #fff; font-size: 13px; line-height: 16px;
+    opacity: 0; pointer-events: none; transition: opacity .3s var(--fade);
+  }
+  #hint.on { opacity: 1; }
+  #hint svg { width: 8px; height: 10px; }
   @media (max-width: 600px) {
-    body { padding: calc(var(--s) * 3); }
-    #grid { grid-template-columns: 1fr 1fr; gap: calc(var(--s) * 2); }
-    #tip { display: none; }
+    #stage.tall { aspect-ratio: 4 / 5; }   /* scrolling a whole page, or a live site, needs height on a phone */
+  }
+
+  /* row under the stage: versions on the left, ways to look on the right */
+  #under {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s4);
+    margin-top: var(--s4);
+  }
+  #under:empty { display: none; }
+
+  #vers { list-style: none; display: flex; gap: var(--s6); overflow-x: auto; padding: 2px; margin: -2px; scrollbar-width: none; }
+  #vers::-webkit-scrollbar { display: none; }
+  #vers li { position: relative; flex: none; }
+  #vers li:not(:last-child)::after {    /* the line from this dot to the next */
+    content: ""; position: absolute; top: 4px; left: 13px; height: 0;
+    width: calc(100% + var(--s6) - 17px); border-top: 1px solid var(--faint);
+  }
+  #vers li.to-plan::after { border-top-style: dashed; }
+  .ver { display: block; text-align: left; font-size: 13px; line-height: 16px; color: var(--soft); min-height: 44px; }
+  .ver .dot { display: block; width: 9px; height: 9px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--soft); margin-bottom: var(--s2); background: var(--page); transition: background .2s var(--fade), box-shadow .2s var(--fade); }
+  .ver b { display: block; font-weight: 600; }
+  .ver:hover, .ver[aria-current="true"] { color: var(--ink); }
+  .ver[aria-current="true"] .dot { background: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+  .ver.plan { color: var(--soft); cursor: default; }
+  .ver.plan .dot { box-shadow: none; border: 1px dashed var(--faint); }
+  .ver.plan b { font-weight: 400; color: var(--soft); }
+
+  #modes { display: flex; gap: var(--s1); flex: none; margin-left: auto; }
+  #modes button {
+    height: 32px; padding: 0 12px; border-radius: 16px;
+    font-size: 13px; line-height: 16px; color: var(--soft);
+    transition: background .15s var(--fade), color .15s var(--fade), transform .15s var(--move);
+  }
+  #modes button:hover { color: var(--ink); }
+  #modes button:active { transform: scale(.97); }
+  #modes button[aria-pressed="true"] { background: var(--chip); color: var(--ink); }
+  @media (hover: none) { #modes button { height: 44px; border-radius: 22px; padding: 0 var(--s3); } }
+  @media (max-width: 600px) {
+    #under { flex-direction: column; gap: var(--s3); }
+    #modes { margin-left: -12px; }
+    #vers { gap: var(--s5); max-width: 100%; }
+    #vers li:not(:last-child)::after { width: calc(100% + var(--s5) - 17px); }
+  }
+
+  #piece h1 { font-size: 28px; line-height: 32px; font-weight: 600; letter-spacing: -.02em; margin-top: var(--s6); }
+  #note { font-size: 17px; line-height: 24px; color: var(--soft); max-width: 680px; margin-top: var(--s2); }
+  #facts {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s4);
+    margin-top: var(--s5); padding-top: var(--s4); border-top: 1px solid var(--line);
+  }
+  #facts dt { font-size: 13px; line-height: 16px; color: var(--soft); margin-bottom: var(--s1); }
+  #facts dd { font-size: 15px; line-height: 24px; overflow-wrap: anywhere; }
+  #facts dd a { box-shadow: inset 0 -1px 0 var(--faint); transition: box-shadow .15s var(--fade); }
+  #facts dd a:hover { box-shadow: inset 0 -1px 0 var(--ink); }
+  #facts dd a svg { width: 8px; height: 8px; margin-left: 6px; vertical-align: 1px; }
+  @media (max-width: 600px) {
+    #piece h1 { font-size: 24px; line-height: 28px; margin-top: var(--s5); }
+    #facts { grid-template-columns: 1fr 1fr; }
+  }
+
+  #pager {
+    display: flex; justify-content: space-between; gap: var(--s4);
+    margin-top: var(--s7); padding-top: var(--s4); border-top: 1px solid var(--line);
+    font-size: 13px; line-height: 16px;
+  }
+  #pager a { display: flex; flex-direction: column; gap: var(--s1); min-height: 44px; max-width: 48%; color: var(--ink); }
+  #pager a span { color: var(--soft); }
+  #pager a:last-child { text-align: right; margin-left: auto; }
+  #pager a b { font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #pager a:hover b { box-shadow: inset 0 -1px 0 var(--ink); }
+
+  /* ------------------------------------------------------------------
+     Motion: a page arrives with a short fade and rise. Reduced motion gets a plain fade.
+     ------------------------------------------------------------------ */
+  @keyframes arrive { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  @keyframes appear { from { opacity: 0; } to { opacity: 1; } }
+  .arrive { animation: arrive .45s var(--move) both; }
+  @media (prefers-reduced-motion: reduce) {
+    .arrive { animation: appear .2s linear both; }
+    .frame, .menu ul, .menu > button svg, #modes button, #theme svg { transition: none !important; transform: none !important; }
   }
 </style>
 </head>
 <body>
 
-<nav id="switch">
-  <button id="switch-btn" aria-haspopup="true" aria-expanded="false">All</button>
-  <ul id="switch-list"></ul>
-</nav>
+<header id="bar">
+  <div class="side">
+    <div class="menu home-only" id="m-folder">
+      <button aria-haspopup="true" aria-expanded="false"><span></span><svg viewBox="0 0 8 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l3 3 3-3"/></svg></button>
+      <ul></ul>
+    </div>
+    <div class="menu home-only" id="m-sort">
+      <button aria-haspopup="true" aria-expanded="false"><span></span><svg viewBox="0 0 8 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l3 3 3-3"/></svg></button>
+      <ul></ul>
+    </div>
+    <a id="back" class="piece-only" href="#all"><svg viewBox="0 0 6 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 1L1 5l4 4"/></svg><span></span></a>
+  </div>
+  <div class="side">
+    <div class="menu right home-only" id="m-year">
+      <button class="num" aria-haspopup="true" aria-expanded="false" aria-label="Jump to a year"><span></span><svg viewBox="0 0 8 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l3 3 3-3"/></svg></button>
+      <ul></ul>
+    </div>
+    <button id="theme" aria-label="Switch light and dark">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+    </button>
+  </div>
+</header>
 
-<main id="grid" aria-label="Archive"></main>
+<main id="home" aria-label="Archive"></main>
 
 <article id="piece">
-  <a class="back" href="#all">&larr; All</a>
-  <img id="p-img" alt="">
-  <h1 id="p-title"></h1>
-  <dl>
-    <dt>Date</dt><dd id="p-date"></dd>
-    <dt>Kind</dt><dd id="p-kind"></dd>
-    <dt>Made with</dt><dd id="p-tool"></dd>
-    <dt>Note</dt><dd id="p-note"></dd>
-    <dt>Link</dt><dd><a id="p-link" href="#" target="_blank" rel="noopener"></a></dd>
-  </dl>
-  <div class="nav"><a id="p-prev" href="#all"></a><a id="p-next" href="#all"></a></div>
+  <div class="col">
+    <div id="stage"></div>
+    <div id="under"></div>
+    <h1 id="p-title"></h1>
+    <p id="note"></p>
+    <dl id="facts"></dl>
+    <nav id="pager" aria-label="Next and previous"></nav>
+  </div>
 </article>
 
-<div id="tip" role="presentation"></div>
-
 <script>
-// Folders. A piece can be in any number of them, or none.
-// "All" is not a folder: it always shows every piece.
+/* ====================================================================
+   DATA. One list behind the whole site.
+   A piece with one look can be written flat (date, img and so on right on the piece).
+   A piece with several looks has "versions"; each finished version gets its own tile,
+   placed at its own date. See archive-design-spec.md, section 4, for every field.
+   ==================================================================== */
 var FOLDERS = [
-  { id: "websites", name: "Websites" },
-  { id: "apps", name: "Apps" },
-  { id: "games", name: "Games" },
-  { id: "encloud9", name: "enCloud9" },
+  { id: "websites",   name: "Websites" },
+  { id: "apps",       name: "Apps" },
+  { id: "games",      name: "Games" },
+  { id: "encloud9",   name: "enCloud9" },
   { id: "rip-resale", name: "RIP Resale" },
-  { id: "logos", name: "Logos" }
+  { id: "logos",      name: "Logos" }
 ];
 
-// One list behind the site. Adding a piece means adding one entry here.
 var PIECES = [
   {
-    id: "dynamics365support",
-    title: "dynamics365support.com",
-    date: "2026-09-01", shown: "Before late Sep 2026",
-    kind: "Website",
+    id: "encloud9-com", title: "encloud9.com", kind: "Website",
+    link: "https://www.encloud9.com/",
+    wayback: "https://web.archive.org/web/*/encloud9.com",
+    folders: ["websites", "encloud9"],
+    versions: [
+      {
+        id: "2024-redo", label: "2024 redo",
+        date: "2024-06-01", shown: "Summer 2024", precision: "season",
+        tool: "WordPress (Divi)",
+        note: "The redo Michael did when he started at enCloud9, between May and July 2024. Captured on 12 Nov 2026, a month before the rebuild replaces it.",
+        img: "encloud9-2024.jpg",
+        full: "encloud9-2024-full.jpg"
+      },
+      { id: "2026-rebuild", label: "2026 rebuild", pending: true, shown: "Planned Dec 2026" }
+    ]
+  },
+  {
+    id: "dynamics365support", title: "dynamics365support.com", kind: "Website",
+    date: "2026-09-01", shown: "Before late Sep 2026", precision: "before",
     tool: "Claude",
     note: "enCloud9's Dynamics 365 support site. The first site built with Claude.",
     link: "https://dynamics365support.com/",
-    img: "dynamics365support.jpg",
+    img: "dynamics365support.jpg", peek: "dynamics365support-peek.jpg",
     folders: ["websites", "encloud9"]
   },
   {
-    id: "storage-page",
-    title: "Dataverse storage landing page",
-    date: "2026-10-21", shown: "21 Oct 2026",
-    kind: "Web page",
+    id: "sound-bites", title: "Sound Bites", kind: "Web app",
+    date: "2026-09-12", shown: "Sep 2026", precision: "month",
+    tool: "Claude",
+    note: "Places to eat within a mile of Harbor Steps in downtown Seattle, with walk times, what to order and what the dishes are.",
+    link: "https://michaelbegley.github.io/sound-bites/",
+    img: "sound-bites.jpg", peek: "sound-bites-peek.jpg",
+    folders: ["apps"]
+  },
+  {
+    id: "storage-page", title: "Dataverse storage landing page", kind: "Web page",
+    date: "2026-10-21", shown: "21 Oct 2026", precision: "day",
     tool: "Claude",
     note: "A landing page offering a free storage analysis to companies getting Microsoft storage warnings.",
     link: "https://www.encloud9.com/lp/dataverse-storage-analysis/",
-    img: "storage-page.jpg",
+    img: "storage-page.jpg", peek: "storage-page-peek.jpg",
     folders: ["websites", "encloud9"]
   },
   {
-    id: "rip-resale-logo",
-    title: "RIP RESALE logo",
-    date: "2026-10-31", shown: "31 Oct 2026",
-    kind: "Logo",
+    id: "rip-resale-logo", title: "RIP RESALE logo", kind: "Logo",
+    date: "2026-10-31", shown: "31 Oct 2026", precision: "day",
     tool: "Claude",
     note: "A headstone with RIP on it and a zombie hand rising out of the rocks. Lettering smoothed on 2 Nov.",
     link: "https://resale.rip/",
@@ -208,10 +435,8 @@ var PIECES = [
     folders: ["rip-resale", "logos"]
   },
   {
-    id: "riplogi-logo",
-    title: "RIPLOGI logo",
-    date: "2026-11-01", shown: "1 Nov 2026",
-    kind: "Logo",
+    id: "riplogi-logo", title: "RIPLOGI logo", kind: "Logo",
+    date: "2026-11-01", shown: "1 Nov 2026", precision: "day",
     tool: "Claude",
     note: "A small headstone with a three-finger hand, next to the name. The logo for the system that runs the store.",
     link: "https://logi.rip/",
@@ -219,10 +444,8 @@ var PIECES = [
     folders: ["rip-resale", "logos"]
   },
   {
-    id: "resale-rip",
-    title: "resale.rip",
-    date: "2026-11-01", shown: "1 Nov 2026",
-    kind: "Website",
+    id: "resale-rip", title: "resale.rip", kind: "Website",
+    date: "2026-11-01", shown: "1 Nov 2026", precision: "day",
     tool: "Claude",
     note: "A one-page site for the store: the logo, a light and dark switch, and an email sign-up.",
     link: "https://resale.rip/",
@@ -230,10 +453,8 @@ var PIECES = [
     folders: ["websites", "rip-resale"]
   },
   {
-    id: "logi-rip",
-    title: "logi.rip",
-    date: "2026-11-01", shown: "1 Nov 2026",
-    kind: "Website",
+    id: "logi-rip", title: "logi.rip", kind: "Website",
+    date: "2026-11-01", shown: "1 Nov 2026", precision: "day",
     tool: "Claude",
     note: "A one-page site for RIPLOGI with an Enter Site intro, sound, a light and dark switch, and an email sign-up.",
     link: "https://logi.rip/",
@@ -241,32 +462,18 @@ var PIECES = [
     folders: ["websites", "rip-resale"]
   },
   {
-    id: "baton-quest",
-    title: "Baton Quest",
-    date: "2026-11-02", shown: "2 Nov 2026",
-    kind: "Game",
+    id: "baton-quest", title: "Baton Quest", kind: "Game",
+    date: "2026-11-02", shown: "2 Nov 2026", precision: "day",
     tool: "Claude",
     note: "A browser platformer where a conductor rescues three agents from a villain called Scope Creep. Sixteen levels, four bosses and a printed-style manual.",
     link: "https://michaelbegley.github.io/baton-quest/",
+    live: "https://michaelbegley.github.io/baton-quest/",
     img: "baton-quest.jpg",
     folders: ["games"]
   },
   {
-    id: "sound-bites",
-    title: "Sound Bites",
-    date: "2026-09-12", shown: "Sep 2026",
-    kind: "Web app",
-    tool: "Claude",
-    note: "Places to eat within a mile of Harbor Steps in downtown Seattle, with walk times, what to order and what the dishes are.",
-    link: "https://michaelbegley.github.io/sound-bites/",
-    img: "sound-bites.jpg",
-    folders: ["apps"]
-  },
-  {
-    id: "unwalked-earth",
-    title: "Unwalked Earth",
-    date: "2026-11-11", shown: "11 Nov 2026",
-    kind: "Website",
+    id: "unwalked-earth", title: "Unwalked Earth", kind: "Website",
+    date: "2026-11-11", shown: "11 Nov 2026", precision: "day",
     tool: "Claude",
     note: "A globe that marks the land nobody has probably ever stood on.",
     link: "https://unwalked.earth/",
@@ -274,156 +481,479 @@ var PIECES = [
     folders: ["websites"]
   },
   {
-    id: "encloud9-old",
-    title: "encloud9.com, before the rebuild",
-    date: "2026-11-12", shown: "Captured 12 Nov 2026",
-    kind: "Website",
-    tool: "WordPress (Divi)",
-    note: "The enCloud9 site as it looked before the rebuild. Kept as the before half of a before and after.",
-    link: "https://www.encloud9.com/",
-    img: "encloud9-old.jpg",
-    folders: ["websites", "encloud9"]
-  },
-  {
-    id: "digital-future",
-    title: "Digital Future",
-    date: "2026-11-12", shown: "12 Nov 2026",
-    kind: "Website",
+    id: "digital-future", title: "Digital Future", kind: "Website",
+    date: "2026-11-12", shown: "12 Nov 2026", precision: "day",
     tool: "Claude",
     note: "Upload a short video and get it back rebuilt in falling green characters, with a toy voice filter.",
-    link: "https://michaelbegley.github.io/digital-future/",
-    img: "digital-future.jpg",
+    link: "https://digitalfuture.technology/",
+    img: "digital-future.jpg", peek: "digital-future-peek.jpg",
     folders: ["websites"]
   }
 ];
 
-// Oldest first.
-PIECES.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+/* ====================================================================
+   SETUP
+   ==================================================================== */
+var SORTS = [
+  { id: "old", name: "Oldest first" },
+  { id: "new", name: "Newest first" },
+  { id: "az",  name: "A to Z" }
+];
+var MODES = [                      /* ways to look at one version, in this order */
+  { id: "picture", name: "Picture",   has: function (v) { return !!v.img; } },
+  { id: "full",    name: "Full page", has: function (v) { return !!v.full; } },
+  { id: "peek",    name: "Page",    has: function (v) { return !!v.peek && !v.full; } },
+  { id: "live",    name: "Live",      has: function (v) { return !!v.live; } },
+  { id: "copy",    name: "Saved copy", has: function (v) { return !!v.copy; } },
+  { id: "code",    name: "Code",      has: function (v) { return !!(v.code || v.copy); } }
+];
+/* when two dates tie, the fuzzier one goes first */
+var FUZZ = { before: 0, circa: 1, year: 2, season: 3, month: 4, day: 5 };
 
-var grid = document.getElementById("grid");
-var tip = document.getElementById("tip");
+function $(id) { return document.getElementById(id); }
+function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
 
-function el(tag, cls) { var e = document.createElement(tag); if (cls) e.className = cls; return e; }
+/* Give every piece a versions list, with each version filled in from the piece. */
+var PIECE_KEYS = ["date", "shown", "precision", "tool", "note", "img", "thumb", "full", "peek", "live", "copy", "code", "mat", "fit"];
+PIECES.forEach(function (p) {
+  if (!p.versions || !p.versions.length) p.versions = [{ id: "v1" }];
+  p.versions.forEach(function (v) {
+    PIECE_KEYS.forEach(function (k) { if (v[k] === undefined && p[k] !== undefined) v[k] = p[k]; });
+  });
+});
+function finished(p) { return p.versions.filter(function (v) { return !v.pending; }); }
+function pieceById(id) { for (var i = 0; i < PIECES.length; i++) if (PIECES[i].id === id) return PIECES[i]; return null; }
 
-var folder = "all";   // current view
-var listed = PIECES;  // pieces in the current view, oldest first
+var state = { folder: "all", sort: "old", homeY: 0 };
+try { var s0 = localStorage.getItem("archive-sort"); if (s0 && SORTS.some(function (s) { return s.id === s0; })) state.sort = s0; } catch (e) {}
 
 function inFolder(p, f) { return f === "all" || (p.folders || []).indexOf(f) >= 0; }
-function folderName(f) {
-  if (f === "all") return "All";
-  for (var i = 0; i < FOLDERS.length; i++) if (FOLDERS[i].id === f) return FOLDERS[i].name;
-  return "All";
+function folderName(f) { for (var i = 0; i < FOLDERS.length; i++) if (FOLDERS[i].id === f) return FOLDERS[i].name; return "All"; }
+function sortName(s) { for (var i = 0; i < SORTS.length; i++) if (SORTS[i].id === s) return SORTS[i].name; return SORTS[0].name; }
+
+/* One tile per finished version. */
+function tiles() {
+  var out = [];
+  PIECES.forEach(function (p) {
+    if (!inFolder(p, state.folder)) return;
+    finished(p).forEach(function (v) { out.push({ p: p, v: v }); });
+  });
+  function byDate(a, b) {
+    if (a.v.date !== b.v.date) return a.v.date < b.v.date ? -1 : 1;
+    var fa = FUZZ[a.v.precision] === undefined ? 5 : FUZZ[a.v.precision], fb = FUZZ[b.v.precision] === undefined ? 5 : FUZZ[b.v.precision];
+    if (fa !== fb) return fa - fb;
+    return a.p.title.toLowerCase().localeCompare(b.p.title.toLowerCase());
+  }
+  if (state.sort === "az") out.sort(function (a, b) {
+    var t = a.p.title.toLowerCase().localeCompare(b.p.title.toLowerCase());
+    return t !== 0 ? t : byDate(a, b);
+  });
+  else { out.sort(byDate); if (state.sort === "new") out.reverse(); }
+  return out;
+}
+function href(t) { return "#" + t.p.id + (t.p.versions.length > 1 ? "/" + t.v.id : ""); }
+
+/* A picture close to 16:10 fills its frame. Anything else (tall, square, a wide strip) sits whole on the mat. */
+function fit(img, v) {
+  function set() {
+    var r = img.naturalWidth / img.naturalHeight;
+    var fill = v.fit ? v.fit === "fill" : (r > 1.45 && r < 1.78);
+    img.classList.toggle("fill", fill);
+  }
+  if (img.complete && img.naturalWidth) set(); else img.addEventListener("load", set);
+}
+function dots(p, v) {
+  if (p.versions.length < 2) return null;
+  var d = el("span", "dots");
+  p.versions.forEach(function (x) { d.appendChild(el("i", x.pending ? "plan" : x === v ? "on" : "")); });
+  d.setAttribute("aria-hidden", "true");
+  return d;
 }
 
-function renderGrid() {
-  listed = PIECES.filter(function (p) { return inFolder(p, folder); });
-  grid.innerHTML = "";
-  var lastYear = "";
-  listed.forEach(function (p) {
-    var y = p.date.slice(0, 4);
-    if (y !== lastYear) {
-      var h = el("div", "year"); h.textContent = y; grid.appendChild(h); lastYear = y;
+/* ====================================================================
+   HOME
+   ==================================================================== */
+var listed = [];
+
+function renderHome() {
+  var home = $("home");
+  listed = tiles();
+  home.innerHTML = "";
+  if (!listed.length) { home.appendChild(el("p", "empty", "Nothing here yet.")); renderMenus(); return; }
+
+  var grid = null, lastYear = null, byYear = state.sort !== "az";
+  listed.forEach(function (t) {
+    var y = byYear ? t.v.date.slice(0, 4) : "";
+    if (!grid || y !== lastYear) {
+      var sec = el("section", "year");
+      if (byYear) { sec.id = "y-" + y; sec.setAttribute("data-year", y); sec.appendChild(el("h2", "num", y)); }
+      grid = el("div", "grid"); sec.appendChild(grid); home.appendChild(sec); lastYear = y;
     }
-    var a = el("a", "tile");
-    a.href = "#" + p.id;
-    a.setAttribute("aria-label", p.title + ", " + p.shown);
-    var im = el("img"); im.src = p.img; im.alt = ""; im.loading = "lazy";
-    a.appendChild(im);
-    a.addEventListener("mouseenter", function () {
-      tip.innerHTML = "";
-      var b = el("b"); b.textContent = p.title;
-      var s = el("span"); s.textContent = p.shown + " \u00b7 " + p.kind;
-      tip.appendChild(b); tip.appendChild(s);
-      tip.classList.add("on");
-    });
-    a.addEventListener("mousemove", function (e) {
-      var x = e.clientX + 16, y2 = e.clientY + 16;
-      var w = tip.offsetWidth, hgt = tip.offsetHeight;
-      if (x + w > window.innerWidth - 8) x = e.clientX - w - 16;
-      if (y2 + hgt > window.innerHeight - 8) y2 = e.clientY - hgt - 16;
-      tip.style.transform = "translate(" + x + "px," + y2 + "px)";
-    });
-    a.addEventListener("mouseleave", function () { tip.classList.remove("on"); });
+    var count = t.p.versions.length;
+    var a = el("a", "tile"); a.href = href(t);
+    a.setAttribute("aria-label", t.p.title + (count > 1 ? ", " + t.v.label : "") + ", " + t.v.shown + ", " + t.p.kind);
+    var f = el("span", "frame"); if (t.v.mat) f.style.background = t.v.mat;
+    var im = el("img"); im.alt = ""; im.loading = "lazy"; im.decoding = "async"; im.src = t.v.thumb || t.v.img; fit(im, t.v);
+    f.appendChild(im);
+    var pk = t.v.peek || t.v.full;
+    if (pk) {
+      a.classList.add("can-peek"); a.setAttribute("data-peek", pk);
+      var box = el("span", "pk"); box.setAttribute("aria-hidden", "true"); box.appendChild(el("img"));
+      f.appendChild(box); f.appendChild(el("i", "sb"));
+    }
+    a.appendChild(f);
+    var cap = el("span", "cap");
+    cap.appendChild(el("span", "t", t.p.title));
+    cap.appendChild(el("span", "d num", t.v.shown));
+    var d = dots(t.p, t.v); if (d) cap.appendChild(d);
+    a.appendChild(cap);
     grid.appendChild(a);
   });
-  renderSwitch();
+  renderMenus();
+  watchYear();
 }
 
-var sw = document.getElementById("switch");
-var swBtn = document.getElementById("switch-btn");
-var swList = document.getElementById("switch-list");
-
-function renderSwitch() {
-  swBtn.textContent = folderName(folder);
-  swList.innerHTML = "";
-  function item(id, name, count) {
-    var li = el("li"), a = el("a");
-    a.href = id === "all" ? "#all" : "#in-" + id;
-    var t = el("span"); t.textContent = name;
-    var n = el("span", "n"); n.textContent = count;
-    a.appendChild(t); a.appendChild(n);
-    if (id === folder) a.setAttribute("aria-current", "true");
-    li.appendChild(a); swList.appendChild(li);
-  }
-  item("all", "All", PIECES.length);
-  if (FOLDERS.length) { var sep = el("li", "sep"); sep.setAttribute("role", "presentation"); swList.appendChild(sep); }
+function item(list, label, count, current, to, onClick) {
+  var li = el("li"), a = to ? el("a") : el("button");
+  if (to) a.href = to; else a.addEventListener("click", onClick);
+  a.appendChild(el("span", "", label));
+  if (count !== null) a.appendChild(el("span", "num", String(count)));
+  if (current) a.setAttribute("aria-current", "true");
+  li.appendChild(a); list.appendChild(li);
+}
+function renderMenus() {
+  var mf = $("m-folder"), ms = $("m-sort"), my = $("m-year");
+  mf.querySelector("button span").textContent = folderName(state.folder);
+  var fl = mf.querySelector("ul"); fl.innerHTML = "";
+  item(fl, "All", PIECES.length, state.folder === "all", "#all");
+  if (FOLDERS.length) { var sep = el("li", "sep"); sep.setAttribute("role", "presentation"); fl.appendChild(sep); }
   FOLDERS.forEach(function (f) {
-    item(f.id, f.name, PIECES.filter(function (p) { return inFolder(p, f.id); }).length);
+    item(fl, f.name, PIECES.filter(function (p) { return inFolder(p, f.id); }).length, f.id === state.folder, "#in-" + f.id);
+  });
+
+  ms.querySelector("button span").textContent = sortName(state.sort);
+  var sl = ms.querySelector("ul"); sl.innerHTML = "";
+  SORTS.forEach(function (s) {
+    item(sl, s.name, null, s.id === state.sort, null, function () {
+      state.sort = s.id;
+      try { localStorage.setItem("archive-sort", s.id); } catch (e) {}
+      closeMenus(); renderHome(); window.scrollTo(0, 0);
+    });
+  });
+
+  /* year jump: only when the page is in date order and has more than one year */
+  var years = [], counts = {};
+  listed.forEach(function (t) { var y = t.v.date.slice(0, 4); if (!counts[y]) { counts[y] = 0; years.push(y); } counts[y]++; });
+  var showYear = state.sort !== "az" && years.length > 1;
+  my.style.display = showYear ? "" : "none";
+  var yl = my.querySelector("ul"); yl.innerHTML = "";
+  if (showYear) years.forEach(function (y) {
+    item(yl, y, counts[y], false, null, function () {
+      closeMenus();
+      var sec = $("y-" + y); if (sec) window.scrollTo({ top: sec.getBoundingClientRect().top + window.pageYOffset - barHeight(), behavior: reduced() ? "auto" : "smooth" });
+    });
   });
 }
+function barHeight() { return $("bar").offsetHeight; }
+function reduced() { return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
 
-function closeSwitch() { sw.classList.remove("open"); swBtn.setAttribute("aria-expanded", "false"); }
-swBtn.addEventListener("click", function (e) {
-  e.stopPropagation();
-  var open = !sw.classList.contains("open");
-  sw.classList.toggle("open", open);
-  swBtn.setAttribute("aria-expanded", open ? "true" : "false");
+/* the year button always names the year at the top of the screen */
+var yearTick = false;
+function watchYear() {
+  var secs = document.querySelectorAll(".year[data-year]"), now = "", line = barHeight() + 24;
+  for (var i = 0; i < secs.length; i++) if (secs[i].getBoundingClientRect().top <= line || i === 0) now = secs[i].getAttribute("data-year");
+  var btn = $("m-year").querySelector("button span");
+  if (btn.textContent !== now) btn.textContent = now;
+  var links = $("m-year").querySelectorAll("li > *");
+  for (var j = 0; j < links.length; j++) links[j].setAttribute("aria-current", links[j].firstChild.textContent === now ? "true" : "false");
+}
+window.addEventListener("scroll", function () {
+  if (yearTick || document.body.classList.contains("one")) return;
+  yearTick = true; requestAnimationFrame(function () { yearTick = false; watchYear(); });
+}, { passive: true });
+
+function closeMenus() {
+  var ms = document.querySelectorAll(".menu");
+  for (var i = 0; i < ms.length; i++) { ms[i].classList.remove("open"); ms[i].querySelector("button").setAttribute("aria-expanded", "false"); }
+}
+(function () {
+  var ms = document.querySelectorAll(".menu");
+  for (var i = 0; i < ms.length; i++) (function (m) {
+    var b = m.querySelector("button");
+    b.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var open = !m.classList.contains("open");
+      closeMenus();
+      m.classList.toggle("open", open); b.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+  })(ms[i]);
+})();
+document.addEventListener("click", closeMenus);
+
+/* ====================================================================
+   PEEK. Rest on a site's tile and it scrolls down the page; leave and it springs back.
+   Mouse only, and never with reduced motion.
+   ==================================================================== */
+var PEEK_WAIT = 350, PEEK_SPEED = 110, PEEK_EASE = "cubic-bezier(.45, 0, .3, 1)";
+function canPeek() { return window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches && !reduced(); }
+function peekStart(a) {
+  var img = a.querySelector(".pk img"), sb = a.querySelector(".sb"), frame = a.querySelector(".frame");
+  function go() {
+    if (!a._peekWant) return;
+    var fh = frame.clientHeight, ih = img.offsetHeight, dist = ih - fh;
+    if (dist < 8) return;
+    var dur = Math.min(7, Math.max(2.5, dist / PEEK_SPEED));
+    var th = Math.max(16, (fh - 8) * fh / ih);
+    sb.style.height = th + "px";
+    img.style.transition = sb.style.transition = "none";
+    img.style.transform = sb.style.transform = "translateY(0)";
+    a.classList.add("peeking");
+    void img.offsetWidth;
+    img.style.transition = "transform " + dur + "s " + PEEK_EASE + " .15s";
+    sb.style.transition = "transform " + dur + "s " + PEEK_EASE + " .15s, opacity .2s";
+    img.style.transform = "translateY(" + (-dist) + "px)";
+    sb.style.transform = "translateY(" + (fh - 8 - th) + "px)";
+  }
+  if (!img.getAttribute("src")) { img.src = a.getAttribute("data-peek"); }
+  if (img.complete && img.naturalWidth) go(); else img.onload = go;
+}
+function peekStop(a) {
+  var img = a.querySelector(".pk img"), sb = a.querySelector(".sb");
+  if (!a.classList.contains("peeking")) return;
+  img.style.transition = "transform .5s var(--move)";
+  sb.style.transition = "transform .5s var(--move), opacity .2s";
+  img.style.transform = sb.style.transform = "translateY(0)";
+  clearTimeout(a._peekOut);
+  a._peekOut = setTimeout(function () { if (!a._peekWant) a.classList.remove("peeking"); }, 480);
+}
+$("home").addEventListener("mouseover", function (e) {
+  var a = e.target.closest && e.target.closest(".tile.can-peek");
+  if (!a || a._peekWant || !canPeek()) return;
+  a._peekWant = true;
+  clearTimeout(a._peekIn);
+  a._peekIn = setTimeout(function () { peekStart(a); }, PEEK_WAIT);
 });
-document.addEventListener("click", closeSwitch);
-document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeSwitch(); });
+$("home").addEventListener("mouseout", function (e) {
+  var a = e.target.closest && e.target.closest(".tile.can-peek");
+  if (!a || (e.relatedTarget && a.contains(e.relatedTarget))) return;
+  a._peekWant = false; clearTimeout(a._peekIn); peekStop(a);
+});
 
-function show() {
-  var id = (location.hash || "").replace("#", "");
-  tip.classList.remove("on");
-  closeSwitch();
-  if (id === "" || id === "all" || id.indexOf("in-") === 0) {
-    var f = id.indexOf("in-") === 0 ? id.slice(3) : "all";
-    if (folderName(f) === "All") f = "all";
-    if (f !== folder || !grid.firstChild) { folder = f; renderGrid(); }
-    document.body.classList.remove("one");
+/* light and dark: follows the device until the switch is used, then remembers */
+function isDark() {
+  var t = document.documentElement.getAttribute("data-theme");
+  if (t) return t === "dark";
+  return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+function paintTheme() { document.documentElement.classList.toggle("is-dark", isDark()); }
+$("theme").addEventListener("click", function (e) {
+  e.stopPropagation();
+  var next = isDark() ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  try { localStorage.setItem("archive-theme", next); } catch (er) {}
+  paintTheme();
+  var s = $("theme").querySelector(isDark() ? ".moon" : ".sun");
+  if (!reduced()) { s.style.transform = "rotate(-90deg)"; void s.offsetWidth; s.style.transform = ""; }
+});
+if (window.matchMedia) { var mq = window.matchMedia("(prefers-color-scheme: dark)"); if (mq.addEventListener) mq.addEventListener("change", paintTheme); }
+paintTheme();
+
+/* ====================================================================
+   PIECE PAGE
+   ==================================================================== */
+var cur = { p: null, v: null, mode: "picture", i: -1 };
+var ARROW = '<svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 6.5l5-5M3 1.5h3.5V5"/></svg>';
+
+function modesFor(v) { return MODES.filter(function (m) { return m.has(v); }); }
+
+function renderStage() {
+  var stage = $("stage"), p = cur.p, v = cur.v, mode = cur.mode;
+  var old = stage.querySelector(".layer.on");
+  var layer = el("div", "layer");
+  stage.classList.toggle("tall", mode === "full" || mode === "peek" || mode === "live" || mode === "copy" || mode === "code");
+  stage.style.background = (mode === "picture" && v.mat) ? v.mat : "";
+  var hint = null;
+
+  if (mode === "full" || mode === "peek") {
+    layer.className = "layer scroll";
+    layer.tabIndex = 0; layer.setAttribute("aria-label", p.title + (mode === "full" ? ", the whole page." : ", the top of the page.") + " Scroll to see more.");
+    var fi = el("img"); fi.src = mode === "full" ? v.full : v.peek; fi.alt = p.title + (v.label ? ", " + v.label : "") + (mode === "full" ? ", full page" : ", top of the page"); layer.appendChild(fi);
+    hint = el("div", "", ""); hint.id = "hint";
+    hint.innerHTML = '<svg viewBox="0 0 8 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 1v8M1 6l3 3 3-3"/></svg>';
+    hint.appendChild(document.createTextNode("Scroll"));
+    layer.addEventListener("scroll", function () { if (hint) hint.classList.remove("on"); }, { passive: true });
+  } else if (mode === "live" || mode === "copy") {
+    var u = el("div", "under"); u.textContent = "If this stays empty, the site does not allow itself to be shown here. Use the link below.";
+    if (mode === "live") layer.appendChild(u);
+    var fr = el("iframe"); fr.title = p.title + (mode === "copy" ? ", saved copy" : ", live");
+    fr.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-pointer-lock");
+    fr.setAttribute("referrerpolicy", "no-referrer"); fr.loading = "lazy";
+    fr.src = mode === "copy" ? v.copy : v.live;
+    layer.appendChild(fr);
+  } else if (mode === "code") {
+    var pre = el("pre", "", "Loading"); pre.tabIndex = 0; layer.appendChild(pre);
+    fetch(v.code || v.copy).then(function (r) { if (!r.ok) throw 0; return r.text(); })
+      .then(function (t) { pre.textContent = t; })
+      .catch(function () { pre.textContent = "The code could not be loaded."; });
+  } else {
+    var im = el("img", "pic"); im.src = v.img; im.alt = p.title + (v.label ? ", " + v.label : ""); fit(im, v); layer.appendChild(im);
+  }
+
+  stage.appendChild(layer);
+  var oldHint = $("hint"); if (oldHint) oldHint.parentNode.removeChild(oldHint);
+  if (hint) { stage.appendChild(hint); setTimeout(function () { hint.classList.add("on"); }, 300); setTimeout(function () { hint.classList.remove("on"); }, 3300); }
+  requestAnimationFrame(function () { requestAnimationFrame(function () {
+    layer.classList.add("on");
+    if (old) { old.classList.remove("on"); setTimeout(function () { if (old.parentNode) old.parentNode.removeChild(old); }, 420); }
+  }); });
+}
+
+function renderUnder() {
+  var box = $("under"), p = cur.p, v = cur.v;
+  box.innerHTML = "";
+  if (p.versions.length > 1) {
+    var ol = el("ol"); ol.id = "vers"; ol.setAttribute("aria-label", "Versions");
+    p.versions.forEach(function (x, n) {
+      var li = el("li"); if (p.versions[n + 1] && p.versions[n + 1].pending) li.className = "to-plan";
+      var b = el(x.pending ? "div" : "button", "ver" + (x.pending ? " plan" : ""));
+      b.appendChild(el("span", "dot"));
+      b.appendChild(el("b", "", x.label));
+      b.appendChild(el("span", "num", x.shown));
+      if (x.pending) b.setAttribute("aria-label", x.label + ", " + x.shown + ", not made yet");
+      else {
+        b.setAttribute("aria-current", x === v ? "true" : "false");
+        b.addEventListener("click", function () { if (x !== cur.v) location.hash = "#" + p.id + "/" + x.id; });
+      }
+      li.appendChild(b); ol.appendChild(li);
+    });
+    box.appendChild(ol);
+  }
+  var ms = modesFor(v);
+  if (ms.length > 1) {
+    var row = el("div"); row.id = "modes"; row.setAttribute("role", "group"); row.setAttribute("aria-label", "Ways to look at it");
+    ms.forEach(function (m) {
+      var b = el("button", "", m.name);
+      b.setAttribute("aria-pressed", m.id === cur.mode ? "true" : "false");
+      b.addEventListener("click", function () {
+        if (cur.mode === m.id) return;
+        cur.mode = m.id; renderStage();
+        var bs = row.querySelectorAll("button");
+        for (var i = 0; i < bs.length; i++) bs[i].setAttribute("aria-pressed", bs[i] === b ? "true" : "false");
+      });
+      row.appendChild(b);
+    });
+    box.appendChild(row);
+  }
+}
+
+function fact(dl, label, node) {
+  var d = el("div"); d.appendChild(el("dt", "", label));
+  var dd = el("dd"); if (typeof node === "string") dd.textContent = node; else dd.appendChild(node);
+  d.appendChild(dd); dl.appendChild(d);
+}
+function out(url, text) {
+  var a = el("a"); a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
+  a.textContent = text; a.insertAdjacentHTML("beforeend", ARROW); return a;
+}
+function renderWords() {
+  var p = cur.p, v = cur.v;
+  $("p-title").textContent = p.title;
+  $("note").textContent = v.note || "";
+  var dl = $("facts"); dl.innerHTML = "";
+  fact(dl, "Date", v.shown);
+  fact(dl, "Kind", p.kind);
+  if (v.tool) fact(dl, "Made with", v.tool);
+  if (p.link) fact(dl, "Link", out(p.link, p.link.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")));
+  if (p.wayback) fact(dl, "Older looks", out(p.wayback, "Wayback Machine"));
+}
+
+function renderPager() {
+  var nav = $("pager"); nav.innerHTML = "";
+  var i = cur.i;
+  function link(t, word) {
+    var a = el("a"); a.href = href(t);
+    a.appendChild(el("span", "", word));
+    a.appendChild(el("b", "", t.p.title + (t.p.versions.length > 1 ? ", " + t.v.label : "")));
+    return a;
+  }
+  if (i > 0) nav.appendChild(link(listed[i - 1], "Previous"));
+  if (i >= 0 && i < listed.length - 1) nav.appendChild(link(listed[i + 1], "Next"));
+  nav.style.display = nav.firstChild ? "" : "none";
+}
+
+function showPiece(p, verId) {
+  var done = finished(p), v = null;
+  done.forEach(function (x) { if (x.id === verId) v = x; });
+  if (!v) v = done[done.length - 1];
+  if (!v) return false;
+
+  if (!inFolder(p, state.folder)) state.folder = "all";
+  listed = tiles();
+  var i = -1; listed.forEach(function (t, n) { if (t.p === p && t.v === v) i = n; });
+
+  var samePiece = cur.p === p && document.body.classList.contains("one");
+  cur.p = p; cur.v = v; cur.i = i;
+  if (!modesFor(v).some(function (m) { return m.id === cur.mode; }) || !samePiece) cur.mode = "picture";
+
+  $("back").href = state.folder === "all" ? "#all" : "#in-" + state.folder;
+  $("back").querySelector("span").textContent = folderName(state.folder);
+
+  if (!samePiece) $("stage").innerHTML = "";
+  renderStage(); renderUnder(); renderWords(); renderPager();
+  document.title = p.title + " · Archive";
+
+  if (!samePiece) {
+    document.body.classList.add("one");
+    window.scrollTo(0, 0);
+    arrive($("piece").querySelector(".col"));
+  }
+  return true;
+}
+function arrive(node) { node.classList.remove("arrive"); void node.offsetWidth; node.classList.add("arrive"); }
+
+/* ====================================================================
+   ROUTES.  #all   #in-<folder>   #<piece>   #<piece>/<version>
+   ==================================================================== */
+function route() {
+  var h = decodeURIComponent((location.hash || "").replace(/^#/, ""));
+  closeMenus();
+  if (h && h !== "all" && h.indexOf("in-") !== 0) {
+    var parts = h.split("/"), p = pieceById(parts[0]);
+    if (p) {
+      if (!document.body.classList.contains("one")) state.homeY = window.pageYOffset;
+      if (showPiece(p, parts[1])) return;
+    }
+    h = "all";
+  }
+  var f = h.indexOf("in-") === 0 ? h.slice(3) : "all";
+  if (folderName(f) === "All") f = "all";
+  var wasPiece = document.body.classList.contains("one");
+  var changed = f !== state.folder || !$("home").firstChild;
+  state.folder = f;
+  document.body.classList.remove("one");
+  document.title = "Archive";
+  $("stage").innerHTML = "";                    /* stops a live frame or game that was running */
+  if (changed) { renderHome(); arrive($("home")); }
+  if (wasPiece && !changed) window.scrollTo(0, state.homeY);
+  else if (changed) window.scrollTo(0, 0);
+  watchYear();
+}
+window.addEventListener("hashchange", route);
+
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape") {
+    if (document.querySelector(".menu.open")) { closeMenus(); return; }
+    if (document.body.classList.contains("one")) location.hash = $("back").getAttribute("href");
     return;
   }
-  var i = -1;
-  listed.forEach(function (p, n) { if (p.id === id) i = n; });
-  if (i < 0) {
-    // piece not in the current folder: fall back to All
-    folder = "all"; renderGrid();
-    listed.forEach(function (p, n) { if (p.id === id) i = n; });
-  }
-  if (i < 0) { document.body.classList.remove("one"); return; }
-  var p = listed[i];
-  var back = document.querySelector("#piece .back");
-  back.href = folder === "all" ? "#all" : "#in-" + folder;
-  back.textContent = "\u2190 " + folderName(folder);
-  document.getElementById("p-img").src = p.img;
-  document.getElementById("p-img").alt = p.title;
-  document.getElementById("p-title").textContent = p.title;
-  document.getElementById("p-date").textContent = p.shown;
-  document.getElementById("p-kind").textContent = p.kind;
-  document.getElementById("p-tool").textContent = p.tool;
-  document.getElementById("p-note").textContent = p.note;
-  var l = document.getElementById("p-link");
-  l.href = p.link; l.textContent = p.link.replace(/^https?:\/\//, "").replace(/\/$/, "");
-  var prev = document.getElementById("p-prev"), next = document.getElementById("p-next");
-  if (i > 0) { prev.href = "#" + listed[i - 1].id; prev.textContent = "← " + listed[i - 1].title; }
-  else { prev.href = "#all"; prev.textContent = ""; }
-  if (i < listed.length - 1) { next.href = "#" + listed[i + 1].id; next.textContent = listed[i + 1].title + " →"; }
-  else { next.href = "#all"; next.textContent = ""; }
-  document.body.classList.add("one");
-  window.scrollTo(0, 0);
-}
-window.addEventListener("hashchange", show);
-show();
+  if (!document.body.classList.contains("one") || e.metaKey || e.ctrlKey || e.altKey) return;
+  var tag = (document.activeElement && document.activeElement.tagName) || "";
+  if (tag === "IFRAME" || tag === "INPUT" || tag === "TEXTAREA") return;
+  if (e.key === "ArrowLeft" && cur.i > 0) location.hash = href(listed[cur.i - 1]);
+  if (e.key === "ArrowRight" && cur.i >= 0 && cur.i < listed.length - 1) location.hash = href(listed[cur.i + 1]);
+});
+
+route();
 </script>
 </body>
 </html>
