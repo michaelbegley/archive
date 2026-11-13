@@ -165,11 +165,46 @@
 // "All" is not a folder: it always shows every piece.
 var FOLDERS = [
   { id: "websites", name: "Websites" },
-  { id: "apps", name: "Apps" }
+  { id: "apps", name: "Apps" },
+  { id: "games", name: "Games" },
+  { id: "encloud9", name: "enCloud9" }
 ];
 
 // One list behind the site. Adding a piece means adding one entry here.
 var PIECES = [
+  {
+    id: "dynamics365support",
+    title: "dynamics365support.com",
+    date: "2026-09-01", shown: "Before late Sep 2026",
+    kind: "Website",
+    tool: "Claude",
+    note: "enCloud9's Dynamics 365 support site. The first site built with Claude.",
+    link: "https://dynamics365support.com/",
+    img: "dynamics365support.jpg",
+    folders: ["websites", "encloud9"]
+  },
+  {
+    id: "storage-page",
+    title: "Dataverse storage landing page",
+    date: "2026-10-21", shown: "21 Oct 2026",
+    kind: "Web page",
+    tool: "Claude",
+    note: "A landing page offering a free storage analysis to companies getting Microsoft storage warnings.",
+    link: "https://www.encloud9.com/lp/dataverse-storage-analysis/",
+    img: "storage-page.jpg",
+    folders: ["websites", "encloud9"]
+  },
+  {
+    id: "baton-quest",
+    title: "Baton Quest",
+    date: "2026-11-02", shown: "2 Nov 2026",
+    kind: "Game",
+    tool: "Claude",
+    note: "A browser platformer where a conductor rescues three agents from a villain called Scope Creep. Sixteen levels, four bosses and a printed-style manual.",
+    link: "https://michaelbegley.github.io/baton-quest/",
+    img: "baton-quest.jpg",
+    folders: ["games"]
+  },
   {
     id: "sound-bites",
     title: "Sound Bites",
