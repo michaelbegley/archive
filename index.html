@@ -167,7 +167,9 @@ var FOLDERS = [
   { id: "websites", name: "Websites" },
   { id: "apps", name: "Apps" },
   { id: "games", name: "Games" },
-  { id: "encloud9", name: "enCloud9" }
+  { id: "encloud9", name: "enCloud9" },
+  { id: "rip-resale", name: "RIP Resale" },
+  { id: "logos", name: "Logos" }
 ];
 
 // One list behind the site. Adding a piece means adding one entry here.
@@ -193,6 +195,50 @@ var PIECES = [
     link: "https://www.encloud9.com/lp/dataverse-storage-analysis/",
     img: "storage-page.jpg",
     folders: ["websites", "encloud9"]
+  },
+  {
+    id: "rip-resale-logo",
+    title: "RIP RESALE logo",
+    date: "2026-10-31", shown: "31 Oct 2026",
+    kind: "Logo",
+    tool: "Claude",
+    note: "A headstone with RIP on it and a zombie hand rising out of the rocks. Lettering smoothed on 2 Nov.",
+    link: "https://resale.rip/",
+    img: "rip-resale-logo.jpg",
+    folders: ["rip-resale", "logos"]
+  },
+  {
+    id: "riplogi-logo",
+    title: "RIPLOGI logo",
+    date: "2026-11-01", shown: "1 Nov 2026",
+    kind: "Logo",
+    tool: "Claude",
+    note: "A small headstone with a three-finger hand, next to the name. The logo for the system that runs the store.",
+    link: "https://logi.rip/",
+    img: "riplogi-logo.jpg",
+    folders: ["rip-resale", "logos"]
+  },
+  {
+    id: "resale-rip",
+    title: "resale.rip",
+    date: "2026-11-01", shown: "1 Nov 2026",
+    kind: "Website",
+    tool: "Claude",
+    note: "A one-page site for the store: the logo, a light and dark switch, and an email sign-up.",
+    link: "https://resale.rip/",
+    img: "resale-rip.jpg",
+    folders: ["websites", "rip-resale"]
+  },
+  {
+    id: "logi-rip",
+    title: "logi.rip",
+    date: "2026-11-01", shown: "1 Nov 2026",
+    kind: "Website",
+    tool: "Claude",
+    note: "A one-page site for RIPLOGI with an Enter Site intro, sound, a light and dark switch, and an email sign-up.",
+    link: "https://logi.rip/",
+    img: "logi-rip.jpg",
+    folders: ["websites", "rip-resale"]
   },
   {
     id: "baton-quest",
