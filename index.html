@@ -15,6 +15,29 @@
   }
   a { color: inherit; }
 
+  /* folder switcher, top left */
+  #switch { position: relative; margin-bottom: calc(var(--s) * 4); font-size: 12px; }
+  #switch-btn {
+    background: none; border: 0; padding: 0; cursor: pointer;
+    font: inherit; color: var(--ink); letter-spacing: .02em;
+  }
+  #switch-btn::after { content: " \25BE"; color: var(--soft); }
+  #switch-list {
+    display: none; position: absolute; left: 0; top: calc(100% + var(--s));
+    background: #fff; border: 1px solid var(--line);
+    padding: var(--s) 0; min-width: 160px; z-index: 6; list-style: none;
+  }
+  #switch.open #switch-list { display: block; }
+  #switch-list a {
+    display: flex; justify-content: space-between; gap: calc(var(--s) * 3);
+    padding: calc(var(--s) * .5) calc(var(--s) * 2);
+    text-decoration: none; color: var(--soft);
+  }
+  #switch-list a:hover, #switch-list a[aria-current="true"] { color: var(--ink); }
+  #switch-list .n { color: var(--soft); }
+  #switch-list .sep { height: 1px; background: var(--line); margin: var(--s) 0; }
+  body.one #switch { display: none; }
+
   /* grid */
   #grid {
     display: grid;
@@ -114,6 +137,11 @@
 </head>
 <body>
 
+<nav id="switch">
+  <button id="switch-btn" aria-haspopup="true" aria-expanded="false">All</button>
+  <ul id="switch-list"></ul>
+</nav>
+
 <main id="grid" aria-label="Archive"></main>
 
 <article id="piece">
@@ -133,6 +161,13 @@
 <div id="tip" role="presentation"></div>
 
 <script>
+// Folders. A piece can be in any number of them, or none.
+// "All" is not a folder: it always shows every piece.
+var FOLDERS = [
+  { id: "websites", name: "Websites" },
+  { id: "apps", name: "Apps" }
+];
+
 // One list behind the site. Adding a piece means adding one entry here.
 var PIECES = [
   {
@@ -143,7 +178,8 @@ var PIECES = [
     tool: "Claude",
     note: "Places to eat within a mile of Harbor Steps in downtown Seattle, with walk times, what to order and what the dishes are.",
     link: "https://michaelbegley.github.io/sound-bites/",
-    img: "sound-bites.jpg"
+    img: "sound-bites.jpg",
+    folders: ["apps"]
   },
   {
     id: "unwalked-earth",
@@ -153,7 +189,8 @@ var PIECES = [
     tool: "Claude",
     note: "A globe that marks the land nobody has probably ever stood on.",
     link: "https://unwalked.earth/",
-    img: "unwalked-earth.jpg"
+    img: "unwalked-earth.jpg",
+    folders: ["websites"]
   },
   {
     id: "digital-future",
@@ -163,7 +200,8 @@ var PIECES = [
     tool: "Claude",
     note: "Upload a short video and get it back rebuilt in falling green characters, with a toy voice filter.",
     link: "https://michaelbegley.github.io/digital-future/",
-    img: "digital-future.jpg"
+    img: "digital-future.jpg",
+    folders: ["websites"]
   }
 ];
 
@@ -175,42 +213,106 @@ var tip = document.getElementById("tip");
 
 function el(tag, cls) { var e = document.createElement(tag); if (cls) e.className = cls; return e; }
 
-var lastYear = "";
-PIECES.forEach(function (p) {
-  var y = p.date.slice(0, 4);
-  if (y !== lastYear) {
-    var h = el("div", "year"); h.textContent = y; grid.appendChild(h); lastYear = y;
+var folder = "all";   // current view
+var listed = PIECES;  // pieces in the current view, oldest first
+
+function inFolder(p, f) { return f === "all" || (p.folders || []).indexOf(f) >= 0; }
+function folderName(f) {
+  if (f === "all") return "All";
+  for (var i = 0; i < FOLDERS.length; i++) if (FOLDERS[i].id === f) return FOLDERS[i].name;
+  return "All";
+}
+
+function renderGrid() {
+  listed = PIECES.filter(function (p) { return inFolder(p, folder); });
+  grid.innerHTML = "";
+  var lastYear = "";
+  listed.forEach(function (p) {
+    var y = p.date.slice(0, 4);
+    if (y !== lastYear) {
+      var h = el("div", "year"); h.textContent = y; grid.appendChild(h); lastYear = y;
+    }
+    var a = el("a", "tile");
+    a.href = "#" + p.id;
+    a.setAttribute("aria-label", p.title + ", " + p.shown);
+    var im = el("img"); im.src = p.img; im.alt = ""; im.loading = "lazy";
+    a.appendChild(im);
+    a.addEventListener("mouseenter", function () {
+      tip.innerHTML = "";
+      var b = el("b"); b.textContent = p.title;
+      var s = el("span"); s.textContent = p.shown + " \u00b7 " + p.kind;
+      tip.appendChild(b); tip.appendChild(s);
+      tip.classList.add("on");
+    });
+    a.addEventListener("mousemove", function (e) {
+      var x = e.clientX + 16, y2 = e.clientY + 16;
+      var w = tip.offsetWidth, hgt = tip.offsetHeight;
+      if (x + w > window.innerWidth - 8) x = e.clientX - w - 16;
+      if (y2 + hgt > window.innerHeight - 8) y2 = e.clientY - hgt - 16;
+      tip.style.transform = "translate(" + x + "px," + y2 + "px)";
+    });
+    a.addEventListener("mouseleave", function () { tip.classList.remove("on"); });
+    grid.appendChild(a);
+  });
+  renderSwitch();
+}
+
+var sw = document.getElementById("switch");
+var swBtn = document.getElementById("switch-btn");
+var swList = document.getElementById("switch-list");
+
+function renderSwitch() {
+  swBtn.textContent = folderName(folder);
+  swList.innerHTML = "";
+  function item(id, name, count) {
+    var li = el("li"), a = el("a");
+    a.href = id === "all" ? "#all" : "#in-" + id;
+    var t = el("span"); t.textContent = name;
+    var n = el("span", "n"); n.textContent = count;
+    a.appendChild(t); a.appendChild(n);
+    if (id === folder) a.setAttribute("aria-current", "true");
+    li.appendChild(a); swList.appendChild(li);
   }
-  var a = el("a", "tile");
-  a.href = "#" + p.id;
-  a.setAttribute("aria-label", p.title + ", " + p.shown);
-  var im = el("img"); im.src = p.img; im.alt = ""; im.loading = "lazy";
-  a.appendChild(im);
-  a.addEventListener("mouseenter", function () {
-    tip.innerHTML = "";
-    var b = el("b"); b.textContent = p.title;
-    var s = el("span"); s.textContent = p.shown + " · " + p.kind;
-    tip.appendChild(b); tip.appendChild(s);
-    tip.classList.add("on");
+  item("all", "All", PIECES.length);
+  if (FOLDERS.length) { var sep = el("li", "sep"); sep.setAttribute("role", "presentation"); swList.appendChild(sep); }
+  FOLDERS.forEach(function (f) {
+    item(f.id, f.name, PIECES.filter(function (p) { return inFolder(p, f.id); }).length);
   });
-  a.addEventListener("mousemove", function (e) {
-    var x = e.clientX + 16, y2 = e.clientY + 16;
-    var w = tip.offsetWidth, hgt = tip.offsetHeight;
-    if (x + w > window.innerWidth - 8) x = e.clientX - w - 16;
-    if (y2 + hgt > window.innerHeight - 8) y2 = e.clientY - hgt - 16;
-    tip.style.transform = "translate(" + x + "px," + y2 + "px)";
-  });
-  a.addEventListener("mouseleave", function () { tip.classList.remove("on"); });
-  grid.appendChild(a);
+}
+
+function closeSwitch() { sw.classList.remove("open"); swBtn.setAttribute("aria-expanded", "false"); }
+swBtn.addEventListener("click", function (e) {
+  e.stopPropagation();
+  var open = !sw.classList.contains("open");
+  sw.classList.toggle("open", open);
+  swBtn.setAttribute("aria-expanded", open ? "true" : "false");
 });
+document.addEventListener("click", closeSwitch);
+document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeSwitch(); });
 
 function show() {
   var id = (location.hash || "").replace("#", "");
-  var i = -1;
-  PIECES.forEach(function (p, n) { if (p.id === id) i = n; });
   tip.classList.remove("on");
+  closeSwitch();
+  if (id === "" || id === "all" || id.indexOf("in-") === 0) {
+    var f = id.indexOf("in-") === 0 ? id.slice(3) : "all";
+    if (folderName(f) === "All") f = "all";
+    if (f !== folder || !grid.firstChild) { folder = f; renderGrid(); }
+    document.body.classList.remove("one");
+    return;
+  }
+  var i = -1;
+  listed.forEach(function (p, n) { if (p.id === id) i = n; });
+  if (i < 0) {
+    // piece not in the current folder: fall back to All
+    folder = "all"; renderGrid();
+    listed.forEach(function (p, n) { if (p.id === id) i = n; });
+  }
   if (i < 0) { document.body.classList.remove("one"); return; }
-  var p = PIECES[i];
+  var p = listed[i];
+  var back = document.querySelector("#piece .back");
+  back.href = folder === "all" ? "#all" : "#in-" + folder;
+  back.textContent = "\u2190 " + folderName(folder);
   document.getElementById("p-img").src = p.img;
   document.getElementById("p-img").alt = p.title;
   document.getElementById("p-title").textContent = p.title;
@@ -221,9 +323,9 @@ function show() {
   var l = document.getElementById("p-link");
   l.href = p.link; l.textContent = p.link.replace(/^https?:\/\//, "").replace(/\/$/, "");
   var prev = document.getElementById("p-prev"), next = document.getElementById("p-next");
-  if (i > 0) { prev.href = "#" + PIECES[i - 1].id; prev.textContent = "← " + PIECES[i - 1].title; }
+  if (i > 0) { prev.href = "#" + listed[i - 1].id; prev.textContent = "← " + listed[i - 1].title; }
   else { prev.href = "#all"; prev.textContent = ""; }
-  if (i < PIECES.length - 1) { next.href = "#" + PIECES[i + 1].id; next.textContent = PIECES[i + 1].title + " →"; }
+  if (i < listed.length - 1) { next.href = "#" + listed[i + 1].id; next.textContent = listed[i + 1].title + " →"; }
   else { next.href = "#all"; next.textContent = ""; }
   document.body.classList.add("one");
   window.scrollTo(0, 0);
